@@ -6,7 +6,8 @@
     </div>
 
     <div class="stats">
-      <div class="stat-card blue"><div class="stat-value">{{ data.total_files }}</div><div class="stat-label">总文件数</div></div>
+      <div class="stat-card blue"><div class="stat-value">{{ data.total_files }}</div><div class="stat-label">总版本数</div></div>
+      <div class="stat-card cyan"><div class="stat-value">{{ data.total_groups }}</div><div class="stat-label">文档数</div></div>
       <div class="stat-card green"><div class="stat-value">{{ data.completed }}</div><div class="stat-label">已处理</div></div>
       <div class="stat-card orange"><div class="stat-value">{{ data.pending_review }}</div><div class="stat-label">待审核</div></div>
       <div class="stat-card purple"><div class="stat-value">{{ data.approved }}</div><div class="stat-label">已入库</div></div>
@@ -45,7 +46,7 @@ import { ref, onMounted } from 'vue'
 import { stats, files } from '../api'
 import { useToast } from '../composables/useToast'
 const toast = useToast()
-const data = ref({ total_files: 0, completed: 0, pending_review: 0, approved: 0, by_bucket: {} })
+const data = ref({ total_files: 0, total_groups: 0, completed: 0, pending_review: 0, approved: 0, by_bucket: {} })
 const tags = ref([])
 const loading = ref(false)
 const refresh = async () => {
@@ -75,9 +76,10 @@ onMounted(refresh)
 .page-header { background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 24px; }
 h1 { font-size: 24px; color: #1e293b; }
 .subtitle { color: #64748b; }
-.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+.stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 24px; }
 .stat-card { background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0; border-left: 4px solid #e2e8f0; }
 .stat-card.blue { border-left-color: #3b82f6; }
+.stat-card.cyan { border-left-color: #06b6d4; }
 .stat-card.green { border-left-color: #10b981; }
 .stat-card.orange { border-left-color: #f59e0b; }
 .stat-card.purple { border-left-color: #8b5cf6; }

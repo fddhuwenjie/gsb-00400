@@ -22,15 +22,20 @@ class FileItem(BaseModel):
     status: str
     review_status: str
     summary: Optional[str] = None
+    group_id: Optional[int] = None
+    version_no: Optional[int] = None
+    change_note: Optional[str] = None
 
 class FileListResponse(BaseModel):
     files: List[FileItem]
 
 class SearchResultItem(BaseModel):
     file_id: int
+    group_id: Optional[int] = None
     filename: str
     standard_name: Optional[str] = None
     bucket: str
+    version_no: Optional[int] = None
     score: float
 
 class SearchResponse(BaseModel):
@@ -39,6 +44,7 @@ class SearchResponse(BaseModel):
 
 class OverviewResponse(BaseModel):
     total_files: int
+    total_groups: int
     completed: int
     pending_review: int
     approved: int

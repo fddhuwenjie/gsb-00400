@@ -25,6 +25,7 @@ build/
 
 # Data
 data/
+uploads/
 *.db
 *.sqlite
 
