@@ -6,10 +6,10 @@
     </div>
 
     <div class="stats">
-      <div class="stat-card blue"><div class="stat-value">{{ data.total_files }}</div><div class="stat-label">总文件数</div></div>
-      <div class="stat-card green"><div class="stat-value">{{ data.completed }}</div><div class="stat-label">已处理</div></div>
-      <div class="stat-card orange"><div class="stat-value">{{ data.pending_review }}</div><div class="stat-label">待审核</div></div>
-      <div class="stat-card purple"><div class="stat-value">{{ data.approved }}</div><div class="stat-label">已入库</div></div>
+      <div class="stat-card blue"><div class="stat-value">{{ data.total_documents ?? 0 }}</div><div class="stat-label">业务文档数</div></div>
+      <div class="stat-card green"><div class="stat-value">{{ data.total_versions ?? data.total_files ?? 0 }}</div><div class="stat-label">版本总数</div></div>
+      <div class="stat-card orange"><div class="stat-value">{{ data.pending_review }}</div><div class="stat-label">待审核版本</div></div>
+      <div class="stat-card purple"><div class="stat-value">{{ data.published ?? data.approved }}</div><div class="stat-label">已发布版本</div></div>
     </div>
 
     <div class="actions-bar">
@@ -23,7 +23,7 @@
 
     <div class="grid">
       <div class="card">
-        <h3>分类统计</h3>
+        <h3>分类统计 <span class="card-note">（仅已发布版本）</span></h3>
         <div v-for="(count, bucket) in data.by_bucket" :key="bucket" class="bucket-row">
           <span>{{ bucket }}</span><span class="count">{{ count }}</span>
         </div>
@@ -45,7 +45,7 @@ import { ref, onMounted } from 'vue'
 import { stats, files } from '../api'
 import { useToast } from '../composables/useToast'
 const toast = useToast()
-const data = ref({ total_files: 0, completed: 0, pending_review: 0, approved: 0, by_bucket: {} })
+const data = ref({ total_files: 0, total_documents: 0, total_versions: 0, completed: 0, pending_review: 0, approved: 0, published: 0, by_bucket: {} })
 const tags = ref([])
 const loading = ref(false)
 const refresh = async () => {
@@ -89,6 +89,7 @@ h1 { font-size: 24px; color: #1e293b; }
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .card { background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0; }
 .card h3 { font-size: 16px; color: #1e293b; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #f1f5f9; }
+.card-note { font-size: 12px; color: #94a3b8; font-weight: 400; }
 .bucket-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
 .count { color: #6366f1; font-weight: 600; }
 .tags { display: flex; flex-wrap: wrap; gap: 8px; }

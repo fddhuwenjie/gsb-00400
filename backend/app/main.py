@@ -18,8 +18,13 @@ class JSONFormatter(logging.Formatter):
             "path": getattr(record, 'path', ''),
         }, ensure_ascii=False)
 
-# 配置日志
-os.makedirs("/data/logs", exist_ok=True)
+# 配置日志（容器内使用 /data/logs，本地/测试环境无权限时回退到 ./logs）
+log_dir = "/data/logs"
+try:
+    os.makedirs(log_dir, exist_ok=True)
+except OSError:
+    log_dir = os.path.join(os.getcwd(), "logs")
+    os.makedirs(log_dir, exist_ok=True)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -28,7 +33,7 @@ logging.basicConfig(
 
 # 添加结构化JSON文件日志
 file_handler = RotatingFileHandler(
-    "/data/logs/app.log", maxBytes=10*1024*1024, backupCount=5, encoding='utf-8'
+    os.path.join(log_dir, "app.log"), maxBytes=10*1024*1024, backupCount=5, encoding='utf-8'
 )
 file_handler.setFormatter(JSONFormatter())
 file_handler.setLevel(logging.INFO)
@@ -37,7 +42,7 @@ logging.getLogger().addHandler(file_handler)
 logger = logging.getLogger(__name__)
 
 from app.database import init_db
-from app.routers import files_router, auth_router, search_router, stats_router
+from app.routers import files_router, documents_router, auth_router, search_router, stats_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -80,6 +85,7 @@ app.add_middleware(
 )
 
 app.include_router(files_router)
+app.include_router(documents_router)
 app.include_router(auth_router)
 app.include_router(search_router)
 app.include_router(stats_router)

@@ -1,4 +1,5 @@
 import re
+from pathlib import Path
 from typing import List, Dict, Tuple
 from datetime import datetime
 
@@ -26,6 +27,17 @@ class TagGenerator:
         """提取版本号"""
         match = re.search(r'[vV]?(\d+\.?\d*)', text)
         return f"v{match.group(1)}" if match else "v1"
+
+    @staticmethod
+    def doc_key(filename: str) -> str:
+        """计算业务文档标识：去掉扩展名、版本号(v1/v2.1)与年份后归一化，
+        同一业务文档的不同版本（如 产品A-方案-v1-2023.pdf 与 产品A-方案-v2-2024.pdf）得到相同标识"""
+        stem = Path(filename).stem.lower()
+        key = re.sub(r'[-_\s.]*[vV]\d+(\.\d+)*', '', stem)   # 去除版本号片段
+        key = re.sub(r'[-_\s.]*(19|20)\d{2}', '', key)       # 去除年份片段
+        key = re.sub(r'\s+', '', key)
+        key = re.sub(r'[-_]+', '-', key).strip('-_.')
+        return key or stem
 
     def generate_tags(self, filename: str, content: str, file_type: str) -> List[Dict]:
         """生成标签"""
