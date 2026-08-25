@@ -7,7 +7,7 @@ import logging
 
 from app.database import get_db
 from app.models import DocumentGroup, DocumentVersion, FileRecord, FileTag, User
-from app.routers.auth import get_current_user_optional
+from app.routers.auth import get_current_user
 from app.services.versioning import get_published_version_map
 
 logger = logging.getLogger(__name__)
@@ -117,14 +117,16 @@ async def get_version(version_id: int, db: AsyncSession = Depends(get_db)):
     }
 
 
-@router.post("/versions/{version_id}/review", summary="审核文档版本", description="审核员对指定版本选择通过(approve)或退回(reject)，可附退回原因；只有审核通过的版本进入搜索与统计")
+@router.post("/versions/{version_id}/review", summary="审核文档版本", description="审核员（仅管理员）对指定版本选择通过(approve)或退回(reject)，可附退回原因；只有审核通过的版本进入搜索与统计")
 async def review_version(
     version_id: int,
     action: str,
     note: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
-    user: Optional[User] = Depends(get_current_user_optional)
+    user: User = Depends(get_current_user)
 ):
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="仅管理员可执行审核操作")
     if action not in ["approve", "reject"]:
         raise HTTPException(status_code=400, detail="Invalid action")
     version = await db.get(DocumentVersion, version_id)

@@ -3,8 +3,9 @@ import io
 import os
 from sqlalchemy import select, update
 
-from app.models import FileRecord, DocumentVersion
+from app.models import FileRecord, DocumentVersion, User
 from app.routers import search as search_module
+from app.routers.auth import pwd_context
 
 
 async def upload(client, filename="方案文档.txt", content=b"v1 content", doc_key="doc-A", note=None):
@@ -156,6 +157,48 @@ class TestVersionReview:
         assert resp.status_code == 404
 
 
+class TestReviewPermissions:
+    async def _create_version(self, auth_client):
+        await upload(auth_client)
+        return (await auth_client.get("/api/docs/doc-A/versions")).json()["versions"][0]["id"]
+
+    async def test_anonymous_user_cannot_review(self, client, auth_client):
+        """未登录用户审核应被拒绝（401）"""
+        vid = await self._create_version(auth_client)
+        client.headers.pop("Authorization", None)  # 确保匿名（auth_client 与 client 共享实例）
+        resp = await client.post(f"/api/versions/{vid}/review", params={"action": "approve"})
+        assert resp.status_code == 401
+        # 状态未被修改
+        detail = (await auth_client.get(f"/api/versions/{vid}")).json()
+        assert detail["review_status"] == "pending"
+
+    async def test_normal_user_cannot_review(self, client, auth_client, db_session):
+        """普通用户（非管理员）审核应被拒绝（403）"""
+        vid = await self._create_version(auth_client)
+        db_session.add(User(username="viewer", hashed_password=pwd_context.hash("viewer123"), role="user"))
+        await db_session.commit()
+        login = await client.post("/api/auth/login", data={"username": "viewer", "password": "viewer123"})
+        assert login.status_code == 200
+        token = login.json()["access_token"]
+
+        for action in ["approve", "reject"]:
+            resp = await client.post(
+                f"/api/versions/{vid}/review",
+                params={"action": action},
+                headers={"Authorization": f"Bearer {token}"}
+            )
+            assert resp.status_code == 403
+        detail = (await auth_client.get(f"/api/versions/{vid}")).json()
+        assert detail["review_status"] == "pending"
+
+    async def test_admin_can_review(self, client, auth_client):
+        """管理员可以正常执行通过与退回"""
+        vid = await self._create_version(auth_client)
+        resp = await auth_client.post(f"/api/versions/{vid}/review", params={"action": "approve"})
+        assert resp.status_code == 200
+        assert resp.json()["review_status"] == "approved"
+
+
 class TestSearchWithVersions:
     async def test_unapproved_version_not_searchable(self, auth_client, mock_embedding):
         f = await upload(auth_client)
@@ -223,6 +266,42 @@ class TestSearchWithVersions:
         results = resp.json()["results"]
         assert len(results) == 1
         assert results[0]["score"] == 0.9
+
+    async def test_valid_result_after_high_score_invalid_not_truncated(self, auth_client, mock_embedding):
+        """高分无效结果（未审核/已退回/非当前发布版本）被排除后，后面的有效文档仍应进入 top_k"""
+        invalid = await upload(auth_client, content=b"unpublished", doc_key="doc-X")
+        valid = await upload(auth_client, content=b"published", doc_key="doc-Y")
+        vid = (await auth_client.get("/api/docs/doc-Y/versions")).json()["versions"][0]["id"]
+        await auth_client.post(f"/api/versions/{vid}/review", params={"action": "approve"})
+
+        # 未发布版本分数更高，且 top_k=1：有效文档不得被提前截掉
+        mock_embedding["results"] = [
+            {"file_id": invalid["id"], "chunk_index": 0, "score": 0.99},
+            {"file_id": valid["id"], "chunk_index": 0, "score": 0.5},
+        ]
+        resp = await auth_client.get("/api/search", params={"q": "方案", "top_k": 1})
+        results = resp.json()["results"]
+        assert len(results) == 1
+        assert results[0]["file_id"] == valid["id"]
+        assert results[0]["score"] == 0.5
+
+    async def test_top_k_applies_to_valid_results_sorted_by_score(self, auth_client, mock_embedding):
+        """top_k 截取发生在过滤之后，且按相关度排序"""
+        files = []
+        for i, key in enumerate(["doc-K1", "doc-K2", "doc-K3"]):
+            f = await upload(auth_client, content=f"c{i}".encode(), doc_key=key)
+            vid = (await auth_client.get(f"/api/docs/{key}/versions")).json()["versions"][0]["id"]
+            await auth_client.post(f"/api/versions/{vid}/review", params={"action": "approve"})
+            files.append(f)
+
+        mock_embedding["results"] = [
+            {"file_id": files[0]["id"], "chunk_index": 0, "score": 0.6},
+            {"file_id": files[1]["id"], "chunk_index": 0, "score": 0.9},
+            {"file_id": files[2]["id"], "chunk_index": 0, "score": 0.8},
+        ]
+        resp = await auth_client.get("/api/search", params={"q": "方案", "top_k": 2})
+        results = resp.json()["results"]
+        assert [r["file_id"] for r in results] == [files[1]["id"], files[2]["id"]]
 
 
 class TestStatsWithVersions:
