@@ -40,6 +40,13 @@ export const files = {
   processPending: () => api.post('/files/process-pending')
 }
 
+export const docs = {
+  groups: () => api.get('/docs'),
+  versions: (docKey) => api.get(`/docs/${encodeURIComponent(docKey)}/versions`),
+  versionDetail: (versionId) => api.get(`/versions/${versionId}`),
+  reviewVersion: (versionId, action, note) => api.post(`/versions/${versionId}/review`, null, { params: { action, ...(note ? { note } : {}) } })
+}
+
 export const search = {
   query: (q, topK = 10) => api.get('/search', { params: { q, top_k: topK } })
 }

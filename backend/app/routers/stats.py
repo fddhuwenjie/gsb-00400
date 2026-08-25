@@ -2,29 +2,55 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.database import get_db
-from app.models import FileRecord, FileTag, FileRelation
+from app.models import FileRecord, FileTag, FileRelation, DocumentVersion
+from app.services.versioning import get_published_version_map
 
 router = APIRouter(prefix="/api/stats", tags=["stats"])
 
-@router.get("/overview", summary="数据总览", description="获取文件总数、处理状态、审核状态和分类统计")
+@router.get("/overview", summary="数据总览", description="获取文件总数、处理状态、审核状态和分类统计；仅审核通过的当前发布版本计入统计")
 async def get_overview(db: AsyncSession = Depends(get_db)):
-    total = await db.execute(select(func.count(FileRecord.id)))
-    completed = await db.execute(select(func.count(FileRecord.id)).where(FileRecord.process_status == "completed"))
-    pending = await db.execute(select(func.count(FileRecord.id)).where(FileRecord.review_status == "pending", FileRecord.process_status == "completed"))
-    approved = await db.execute(select(func.count(FileRecord.id)).where(FileRecord.review_status == "approved"))
-    
-    # 按桶统计
-    buckets_result = await db.execute(
-        select(FileRecord.bucket, func.count(FileRecord.id))
-        .group_by(FileRecord.bucket)
+    published = await get_published_version_map(db)  # {file_id: 当前发布版本}
+    versioned_file_ids = set(
+        (await db.execute(select(DocumentVersion.file_id))).scalars().all()
     )
-    buckets = {row[0]: row[1] for row in buckets_result.fetchall()}
-    
+    all_files = (await db.execute(select(FileRecord))).scalars().all()
+
+    # 仅统计“已发布”的文件：当前发布版本对应的文件；无版本的历史数据沿用旧的审核状态
+    visible = []
+    for f in all_files:
+        if f.id in published:
+            visible.append(f)
+        elif f.id not in versioned_file_ids and f.review_status == "approved":
+            visible.append(f)
+
+    total = len(visible)
+    completed = sum(1 for f in visible if f.process_status == "completed")
+    approved = total
+
+    # 待审核：待审核版本（文件已处理完成）+ 无版本历史数据中待审核的文件
+    pending_versions = (await db.execute(
+        select(DocumentVersion).where(DocumentVersion.review_status == "pending")
+    )).scalars().all()
+    pending = 0
+    for v in pending_versions:
+        f = await db.get(FileRecord, v.file_id)
+        if f and f.process_status == "completed":
+            pending += 1
+    pending += sum(
+        1 for f in all_files
+        if f.id not in versioned_file_ids and f.review_status == "pending" and f.process_status == "completed"
+    )
+
+    # 按桶统计（仅已发布文件）
+    buckets = {}
+    for f in visible:
+        buckets[f.bucket] = buckets.get(f.bucket, 0) + 1
+
     return {
-        "total_files": total.scalar() or 0,
-        "completed": completed.scalar() or 0,
-        "pending_review": pending.scalar() or 0,
-        "approved": approved.scalar() or 0,
+        "total_files": total,
+        "completed": completed,
+        "pending_review": pending,
+        "approved": approved,
         "by_bucket": buckets
     }
 

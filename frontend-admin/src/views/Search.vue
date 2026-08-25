@@ -21,8 +21,11 @@
       <p class="result-count">找到 {{ results.length }} 个相关文档</p>
       <div v-for="r in results" :key="r.file_id" class="result-card">
         <div class="result-info">
-          <div class="result-name">{{ r.filename }}</div>
-          <div class="result-meta">{{ r.standard_name }}</div>
+          <div class="result-name">
+            {{ r.filename }}
+            <span v-if="r.version_no" class="version-badge">v{{ r.version_no }}</span>
+          </div>
+          <div class="result-meta">{{ r.standard_name }}<span v-if="r.doc_key" class="doc-key"> · {{ r.doc_key }}</span></div>
         </div>
         <div class="result-score">
           <div class="score">{{ (r.score * 100).toFixed(0) }}%</div>
@@ -65,6 +68,8 @@ h1 { font-size: 24px; color: #1e293b; }
 .results { display: flex; flex-direction: column; gap: 12px; }
 .result-card { display: flex; justify-content: space-between; align-items: center; background: white; padding: 20px 24px; border-radius: 12px; border: 1px solid #e2e8f0; }
 .result-name { font-size: 16px; font-weight: 500; color: #1e293b; }
+.version-badge { display: inline-block; margin-left: 8px; padding: 2px 8px; background: #dcfce7; color: #166534; border-radius: 10px; font-size: 12px; font-weight: 600; vertical-align: middle; }
+.doc-key { color: #94a3b8; }
 .result-meta { font-size: 14px; color: #64748b; margin-top: 4px; }
 .result-score { text-align: right; }
 .score { font-size: 24px; font-weight: 700; color: #10b981; }

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, BackgroundTasks, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
 from typing import List, Optional
@@ -10,8 +10,11 @@ import threading
 import traceback
 
 from app.database import get_db, async_session
-from app.models import FileRecord, FileTag, TextChunk, ProcessLog
+from app.models import FileRecord, FileTag, TextChunk, ProcessLog, User, DocumentVersion
 from app.services import DocumentParser, VideoParser, EmbeddingService, TagGenerator
+from app.services.versioning import get_or_create_group, next_version_no
+from app.routers.auth import get_current_user_optional
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/files", tags=["files"])
@@ -37,25 +40,36 @@ def run_in_thread(file_id: int, file_path: str, file_type: str):
     thread.start()
     logger.info(f"Started processing thread for file {file_id}")
 
-@router.post("/upload", summary="批量上传文件", description="上传一个或多个文件，自动进行后台解析和标签生成")
+@router.post("/upload", summary="批量上传文件", description="上传一个或多个文件，自动进行后台解析和标签生成。同一文档标识(doc_key)的重复上传会创建新版本而不会覆盖旧文件")
 async def upload_files(
     files: List[UploadFile] = File(...),
-    bucket: Optional[str] = None,
-    db: AsyncSession = Depends(get_db)
+    bucket: Optional[str] = Form(None),
+    doc_key: Optional[str] = Form(None),
+    change_note: Optional[str] = Form(None),
+    db: AsyncSession = Depends(get_db),
+    user: Optional[User] = Depends(get_current_user_optional)
 ):
-    """批量上传文件"""
-    upload_dir = Path("/data/uploads")
+    """批量上传文件，按文档标识(doc_key)分组创建版本"""
+    upload_dir = Path(settings.UPLOAD_DIR)
     upload_dir.mkdir(parents=True, exist_ok=True)
     results = []
-    
+
     for file in files:
-        file_path = upload_dir / file.filename
-        async with aiofiles.open(file_path, "wb") as f:
-            content = await file.read()
-            await f.write(content)
-        
+        content = await file.read()
         file_ext = Path(file.filename).suffix.lower().strip(".")
         suggested_bucket = bucket or tag_generator.suggest_bucket(file.filename, file_ext)
+
+        # 按文档标识分组并分配版本号
+        key = (doc_key or Path(file.filename).stem).strip()
+        group = await get_or_create_group(db, key, title=Path(file.filename).stem, bucket=suggested_bucket)
+        version_no = await next_version_no(db, group.id)
+
+        # 每个版本独立存储，不覆盖旧文件
+        version_dir = upload_dir / str(group.id)
+        version_dir.mkdir(parents=True, exist_ok=True)
+        file_path = version_dir / f"v{version_no}_{file.filename}"
+        async with aiofiles.open(file_path, "wb") as f:
+            await f.write(content)
 
         record = FileRecord(
             original_path=str(file_path),
@@ -66,13 +80,24 @@ async def upload_files(
             process_status="pending"
         )
         db.add(record)
+        await db.flush()
+
+        version = DocumentVersion(
+            group_id=group.id,
+            file_id=record.id,
+            version_no=version_no,
+            change_note=change_note,
+            uploaded_by=user.id if user else None
+        )
+        db.add(version)
         await db.commit()
         await db.refresh(record)
-        
+
         # 在独立线程中处理文件
         run_in_thread(record.id, str(file_path), file_ext)
-        results.append({"id": record.id, "filename": file.filename, "bucket": suggested_bucket})
-    
+        results.append({"id": record.id, "filename": file.filename, "bucket": suggested_bucket,
+                        "doc_key": key, "version_no": version_no})
+
     return {"uploaded": len(results), "files": results}
 
 async def process_file_async(file_id: int, file_path: str, file_type: str):
