@@ -21,7 +21,10 @@
       <p class="result-count">找到 {{ results.length }} 个相关文档</p>
       <div v-for="r in results" :key="r.file_id" class="result-card">
         <div class="result-info">
-          <div class="result-name">{{ r.filename }}</div>
+          <div class="result-name">
+            {{ r.filename }}
+            <span v-if="r.version_no" class="version-badge">v{{ r.version_no }}</span>
+          </div>
           <div class="result-meta">{{ r.standard_name }}</div>
         </div>
         <div class="result-score">
@@ -65,6 +68,7 @@ h1 { font-size: 24px; color: #1e293b; }
 .results { display: flex; flex-direction: column; gap: 12px; }
 .result-card { display: flex; justify-content: space-between; align-items: center; background: white; padding: 20px 24px; border-radius: 12px; border: 1px solid #e2e8f0; }
 .result-name { font-size: 16px; font-weight: 500; color: #1e293b; }
+.version-badge { display: inline-block; margin-left: 8px; background: #e0e7ff; color: #4338ca; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; vertical-align: middle; }
 .result-meta { font-size: 14px; color: #64748b; margin-top: 4px; }
 .result-score { text-align: right; }
 .score { font-size: 24px; font-weight: 700; color: #10b981; }

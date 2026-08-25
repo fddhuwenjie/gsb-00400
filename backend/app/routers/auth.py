@@ -21,17 +21,31 @@ class Token(BaseModel):
 
 def create_token(data: dict):
     expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    return jwt.encode({**data, "exp": expire}, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    payload = {**data, "exp": expire}
+    # JWT 规范要求 sub 为字符串
+    if "sub" in payload:
+        payload["sub"] = str(payload["sub"])
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)):
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        user = await db.get(User, payload.get("sub"))
+        sub = payload.get("sub")
+        user = await db.get(User, int(sub)) if sub is not None else None
         if user is None:
             raise HTTPException(status_code=401, detail="Invalid token")
         return user
+    except HTTPException:
+        raise
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid token")
+
+
+async def require_admin(user: User = Depends(get_current_user)):
+    """依赖：要求当前用户为管理员（审核员）。"""
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="需要管理员权限")
+    return user
 
 
 @router.post("/login", response_model=Token, summary="用户登录", description="使用用户名和密码登录，返回JWT访问令牌")

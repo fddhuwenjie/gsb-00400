@@ -37,7 +37,10 @@ export const files = {
   }),
   review: (id, action) => api.post(`/files/${id}/review`, null, { params: { action } }),
   reindex: () => api.post('/files/reindex'),
-  processPending: () => api.post('/files/process-pending')
+  processPending: () => api.post('/files/process-pending'),
+  groups: (params) => api.get('/files/groups', { params }),
+  versions: (groupId) => api.get(`/files/groups/${groupId}/versions`),
+  versionDetail: (fileId) => api.get(`/files/versions/${fileId}`)
 }
 
 export const search = {

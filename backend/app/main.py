@@ -19,7 +19,13 @@ class JSONFormatter(logging.Formatter):
         }, ensure_ascii=False)
 
 # 配置日志
-os.makedirs("/data/logs", exist_ok=True)
+# 日志目录默认 /data/logs（容器内挂载），无法写入时回退到本地 logs 目录，便于本地开发与测试
+LOG_DIR = os.environ.get("LOG_DIR", "/data/logs")
+try:
+    os.makedirs(LOG_DIR, exist_ok=True)
+except OSError:
+    LOG_DIR = os.path.join(os.getcwd(), "logs")
+    os.makedirs(LOG_DIR, exist_ok=True)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -28,7 +34,7 @@ logging.basicConfig(
 
 # 添加结构化JSON文件日志
 file_handler = RotatingFileHandler(
-    "/data/logs/app.log", maxBytes=10*1024*1024, backupCount=5, encoding='utf-8'
+    os.path.join(LOG_DIR, "app.log"), maxBytes=10*1024*1024, backupCount=5, encoding='utf-8'
 )
 file_handler.setFormatter(JSONFormatter())
 file_handler.setLevel(logging.INFO)
