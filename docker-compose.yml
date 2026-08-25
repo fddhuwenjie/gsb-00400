@@ -1,0 +1,45 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: kb-backend
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      # 数据卷目录结构:
+      #   /data/
+      #   ├── knowledge.db      # SQLite数据库
+      #   ├── uploads/           # 上传文件存储
+      #   ├── faiss_index/       # FAISS向量索引
+      #   ├── models/            # AI模型缓存
+      #   └── logs/              # 应用日志（app.log）
+      - kb-data:/data
+    env_file:
+      - ./.env
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./data/knowledge.db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend-admin:
+    build:
+      context: ./frontend-admin
+      dockerfile: Dockerfile
+    container_name: kb-admin
+    restart: unless-stopped
+    ports:
+      - "8181:80"
+    depends_on:
+      - backend
+
+volumes:
+  kb-data:
+    driver: local
+    # 数据持久化卷，包含数据库、上传文件、向量索引等
+    # 备份: docker run --rm -v kb-data:/data -v $(pwd):/backup alpine tar czf /backup/kb-data-backup.tar.gz /data
+    # 恢复: docker run --rm -v kb-data:/data -v $(pwd):/backup alpine tar xzf /backup/kb-data-backup.tar.gz -C /

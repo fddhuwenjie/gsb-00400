@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Environment
+.env
+.env.local
+*.log
+
+# Data
+data/
+*.db
+*.sqlite
+
+# Docker
+.docker/
+
+# Cache
+.cache/
+.pytest_cache/
+.mypy_cache/
+
+# Models (large files)
+*.pt
+*.bin
+*.onnx

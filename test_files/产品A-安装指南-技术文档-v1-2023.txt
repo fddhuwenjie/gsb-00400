@@ -1,0 +1,38 @@
+产品A 安装部署指南
+
+【环境要求】
+- 操作系统：CentOS 7+ / Ubuntu 20.04+
+- CPU：8核以上
+- 内存：32GB以上
+- 硬盘：500GB SSD
+
+【安装步骤】
+
+1. 准备工作
+   - 关闭防火墙或开放指定端口
+   - 安装Docker和Docker Compose
+
+2. 下载安装包
+   从官方渠道获取安装包 product-a-installer.tar.gz
+
+3. 解压并配置
+   tar -xzf product-a-installer.tar.gz
+   cd product-a
+   cp config.example.yml config.yml
+   # 修改数据库连接等配置
+
+4. 启动服务
+   docker-compose up -d
+
+5. 验证安装
+   访问 http://localhost:8080 检查服务状态
+
+【常见问题】
+Q: 启动失败怎么办？
+A: 检查日志 docker-compose logs -f
+
+Q: 如何升级？
+A: 备份数据后执行 ./upgrade.sh
+
+技术支持：support@example.com
+文档版本：v1.0 | 2023年
