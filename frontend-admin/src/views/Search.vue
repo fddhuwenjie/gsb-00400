@@ -18,11 +18,23 @@
     </div>
 
     <div v-else-if="results.length" class="results">
-      <p class="result-count">找到 {{ results.length }} 个相关文档</p>
-      <div v-for="r in results" :key="r.file_id" class="result-card">
+      <p class="result-count">找到 {{ results.length }} 个相关文档（仅检索已发布版本）</p>
+      <div
+        v-for="r in results"
+        :key="r.file_id"
+        class="result-card"
+        :class="{ clickable: r.document_id }"
+        @click="r.document_id && $router.push(`/documents/${r.document_id}`)"
+      >
         <div class="result-info">
-          <div class="result-name">{{ r.filename }}</div>
-          <div class="result-meta">{{ r.standard_name }}</div>
+          <div class="result-name">
+            <span v-if="r.version_number" class="version-badge published">v{{ r.version_number }}</span>
+            {{ r.filename }}
+          </div>
+          <div class="result-meta">
+            <span v-if="r.bucket" class="tag">{{ r.bucket }}</span>
+            <span v-if="r.standard_name">{{ r.standard_name }}</span>
+          </div>
         </div>
         <div class="result-score">
           <div class="score">{{ (r.score * 100).toFixed(0) }}%</div>
@@ -64,8 +76,13 @@ h1 { font-size: 24px; color: #1e293b; }
 .search-box button:disabled { background: #94a3b8; }
 .results { display: flex; flex-direction: column; gap: 12px; }
 .result-card { display: flex; justify-content: space-between; align-items: center; background: white; padding: 20px 24px; border-radius: 12px; border: 1px solid #e2e8f0; }
-.result-name { font-size: 16px; font-weight: 500; color: #1e293b; }
-.result-meta { font-size: 14px; color: #64748b; margin-top: 4px; }
+.result-card.clickable { cursor: pointer; }
+.result-card.clickable:hover { border-color: #c7d2fe; }
+.result-name { font-size: 16px; font-weight: 500; color: #1e293b; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.version-badge { background: #f1f5f9; color: #475569; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+.version-badge.published { background: #dcfce7; color: #166534; }
+.tag { background: #e0e7ff; color: #4338ca; padding: 3px 10px; border-radius: 12px; font-size: 12px; }
+.result-meta { font-size: 14px; color: #64748b; margin-top: 4px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .result-score { text-align: right; }
 .score { font-size: 24px; font-weight: 700; color: #10b981; }
 .label { font-size: 12px; color: #64748b; }

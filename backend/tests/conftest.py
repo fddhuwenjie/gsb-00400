@@ -1,5 +1,6 @@
 import pytest
 import os
+import tempfile
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
@@ -7,10 +8,16 @@ from sqlalchemy.orm import sessionmaker
 # 使用内存数据库
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 os.environ["SECRET_KEY"] = "test-secret-key-for-testing"
+# 上传目录隔离到临时目录，避免写入 /data
+os.environ["UPLOAD_DIR"] = tempfile.mkdtemp(prefix="kb_test_uploads_")
 
 from app.models import Base
 from app.database import get_db
 from app.main import app
+from app.services.embedding_service import EmbeddingService
+
+# 测试环境禁用向量模型加载（避免网络下载），搜索相关用例自行 mock
+EmbeddingService._load_model = lambda self: False
 
 test_engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
 TestSession = sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)

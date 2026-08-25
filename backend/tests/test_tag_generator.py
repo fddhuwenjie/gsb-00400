@@ -44,6 +44,24 @@ class TestTagGenerator:
     def test_extract_version(self):
         assert TagGenerator.extract_version("产品-v2.1-文档") == "v2.1"
 
+    def test_doc_key_same_business_document(self):
+        k1 = TagGenerator.doc_key("产品A-安装说明-技术标准-v1-2023.pdf")
+        k2 = TagGenerator.doc_key("产品A-安装说明-技术标准-v2-2024.pdf")
+        assert k1 == k2 == "产品a-安装说明-技术标准"
+
+    def test_doc_key_strips_version_and_year_only(self):
+        key = TagGenerator.doc_key("spec-v2.1-2024.txt")
+        assert key == "spec"
+        assert "v2" not in key and "2024" not in key
+
+    def test_doc_key_different_documents_differ(self):
+        k1 = TagGenerator.doc_key("产品A-解决方案-v1.txt")
+        k2 = TagGenerator.doc_key("产品B-解决方案-v1.txt")
+        assert k1 != k2
+
+    def test_doc_key_repeated_upload_same_name(self):
+        assert TagGenerator.doc_key("spec.txt") == TagGenerator.doc_key("spec.txt")
+
     def test_detect_relations(self):
         file_tags = {
             1: [{"value": "产品A"}, {"value": "技术"}, {"value": "2024"}],

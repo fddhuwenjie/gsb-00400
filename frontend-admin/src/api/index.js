@@ -32,12 +32,18 @@ export const auth = {
 export const files = {
   list: (params) => api.get('/files/list', { params }),
   get: (id) => api.get(`/files/${id}`),
-  upload: (formData, onProgress) => api.post('/files/upload', formData, {
+  upload: (formData, onProgress, extra = {}) => api.post('/files/upload', formData, {
+    params: extra,
     onUploadProgress: onProgress ? (e) => onProgress(Math.round((e.loaded * 100) / e.total)) : undefined
   }),
-  review: (id, action) => api.post(`/files/${id}/review`, null, { params: { action } }),
+  review: (id, action, comment) => api.post(`/files/${id}/review`, null, { params: { action, comment } }),
   reindex: () => api.post('/files/reindex'),
   processPending: () => api.post('/files/process-pending')
+}
+
+export const documents = {
+  list: (params) => api.get('/documents', { params }),
+  get: (id) => api.get(`/documents/${id}`)
 }
 
 export const search = {
