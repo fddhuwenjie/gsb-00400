@@ -6,6 +6,7 @@ from jose import jwt
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from pydantic import BaseModel
+from typing import Optional
 
 from app.database import get_db
 from app.models import User
@@ -14,6 +15,7 @@ from app.config import settings
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
 class Token(BaseModel):
     access_token: str
@@ -26,12 +28,23 @@ def create_token(data: dict):
 async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)):
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        user = await db.get(User, payload.get("sub"))
+        user = await db.get(User, int(payload.get("sub")))
         if user is None:
             raise HTTPException(status_code=401, detail="Invalid token")
         return user
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid token")
+
+
+async def get_current_user_optional(token: Optional[str] = Depends(oauth2_scheme_optional), db: AsyncSession = Depends(get_db)):
+    """可选认证：未携带或令牌无效时返回 None，不抛错"""
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        return await db.get(User, int(payload.get("sub")))
+    except Exception:
+        return None
 
 
 @router.post("/login", response_model=Token, summary="用户登录", description="使用用户名和密码登录，返回JWT访问令牌")
@@ -40,7 +53,7 @@ async def login(form: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = 
     user = result.scalar_one_or_none()
     if not user or not pwd_context.verify(form.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="用户名或密码错误")
-    return {"access_token": create_token({"sub": user.id}), "token_type": "bearer"}
+    return {"access_token": create_token({"sub": str(user.id)}), "token_type": "bearer"}
 
 @router.post("/init", summary="初始化管理员", description="创建默认管理员账号（admin/admin123），仅首次调用有效")
 async def init_admin(db: AsyncSession = Depends(get_db)):

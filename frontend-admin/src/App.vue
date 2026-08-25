@@ -15,6 +15,7 @@
       <nav>
         <router-link to="/dashboard" @click="closeMenu"><span class="nav-icon">📊</span><span class="nav-label">数据总览</span></router-link>
         <router-link to="/files" @click="closeMenu"><span class="nav-icon">📁</span><span class="nav-label">文件管理</span></router-link>
+        <router-link to="/versions" @click="closeMenu"><span class="nav-icon">🗂️</span><span class="nav-label">版本管理</span></router-link>
         <router-link to="/review" @click="closeMenu"><span class="nav-icon">✅</span><span class="nav-label">审核确认</span></router-link>
         <router-link to="/search" @click="closeMenu"><span class="nav-icon">🔍</span><span class="nav-label">知识检索</span></router-link>
       </nav>

@@ -70,3 +70,32 @@ class ProcessLog(Base):
     status = Column(String(20))
     message = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+class DocumentGroup(Base):
+    """业务文档分组：同一文档标识(doc_key)的多次上传归入同一组"""
+    __tablename__ = "document_groups"
+    id = Column(Integer, primary_key=True, index=True)
+    doc_key = Column(String(255), unique=True, index=True)  # 文档标识
+    title = Column(String(255))  # 业务文档显示名
+    bucket = Column(String(50), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    versions = relationship("DocumentVersion", back_populates="group", order_by="DocumentVersion.version_no")
+
+class DocumentVersion(Base):
+    """文档版本：每次上传生成一个版本，保留版本号、上传人、上传时间与变更说明"""
+    __tablename__ = "document_versions"
+    id = Column(Integer, primary_key=True, index=True)
+    group_id = Column(Integer, ForeignKey("document_groups.id"), index=True)
+    file_id = Column(Integer, ForeignKey("file_records.id"), unique=True)
+    version_no = Column(Integer)  # 组内递增版本号
+    change_note = Column(String(500), nullable=True)  # 变更说明
+    uploaded_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    uploaded_at = Column(DateTime, default=datetime.utcnow)
+    review_status = Column(String(20), default="pending")  # pending, approved, rejected
+    review_note = Column(String(500), nullable=True)  # 退回原因
+    reviewed_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    reviewed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    group = relationship("DocumentGroup", back_populates="versions")
+    file = relationship("FileRecord")

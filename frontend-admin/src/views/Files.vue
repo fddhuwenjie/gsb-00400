@@ -3,12 +3,17 @@
     <div class="page-header">
       <div>
         <h1>文件管理</h1>
-        <p>上传和管理知识库文件</p>
+        <p>上传和管理知识库文件，同一文档标识的重复上传将创建新版本</p>
       </div>
       <label class="btn-upload">
         📤 上传文件
         <input type="file" multiple @change="upload" hidden />
       </label>
+    </div>
+
+    <div class="upload-meta">
+      <input v-model="uploadMeta.docKey" type="text" placeholder="文档标识（可选，默认为文件名）" />
+      <input v-model="uploadMeta.changeNote" type="text" placeholder="变更说明（可选）" />
     </div>
 
     <div class="upload-progress" :class="{ active: uploading }">
@@ -83,6 +88,7 @@ const list = ref([])
 const filter = reactive({ bucket: '', status: '' })
 const uploading = ref(false)
 const uploadPercent = ref(0)
+const uploadMeta = reactive({ docKey: '', changeNote: '' })
 const page = ref(1)
 const pageSize = 10
 
@@ -121,11 +127,14 @@ const onRefresh = () => load('刷新成功')
 const upload = async (e) => {
   const fd = new FormData()
   for (const f of e.target.files) fd.append('files', f)
+  if (uploadMeta.docKey.trim()) fd.append('doc_key', uploadMeta.docKey.trim())
+  if (uploadMeta.changeNote.trim()) fd.append('change_note', uploadMeta.changeNote.trim())
   uploading.value = true
   uploadPercent.value = 0
   try {
     const { data } = await files.upload(fd, (p) => { uploadPercent.value = p })
     toast.success('成功上传 ' + data.uploaded + ' 个文件')
+    uploadMeta.changeNote = ''
     setTimeout(load, 500)
   } catch (err) {
     toast.error('文件上传失败')
@@ -143,6 +152,9 @@ onMounted(load)
 h1 { font-size: 24px; color: #1e293b; }
 p { color: #64748b; font-size: 14px; margin-top: 4px; }
 .btn-upload { padding: 10px 20px; background: #6366f1; color: white; border-radius: 8px; cursor: pointer; font-size: 14px; }
+.upload-meta { display: flex; gap: 12px; margin-bottom: 16px; background: #f8fafc; padding: 16px; border-radius: 12px; flex-wrap: wrap; }
+.upload-meta input { flex: 1; min-width: 200px; padding: 10px 14px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; background: white; }
+.upload-meta input:focus { outline: none; border-color: #6366f1; }
 .upload-progress { background: white; padding: 0 24px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 16px; max-height: 0; overflow: hidden; opacity: 0; transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease; border-color: transparent; }
 .upload-progress.active { max-height: 80px; opacity: 1; padding: 16px 24px; border-color: #e2e8f0; }
 .progress-label { font-size: 14px; color: #1e293b; margin-bottom: 8px; font-weight: 500; }

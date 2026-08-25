@@ -1,5 +1,6 @@
 import pytest
 import os
+import tempfile
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
@@ -7,6 +8,8 @@ from sqlalchemy.orm import sessionmaker
 # 使用内存数据库
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 os.environ["SECRET_KEY"] = "test-secret-key-for-testing"
+os.environ["UPLOAD_DIR"] = tempfile.mkdtemp(prefix="kb_test_uploads_")
+os.environ["LOG_DIR"] = tempfile.mkdtemp(prefix="kb_test_logs_")
 
 from app.models import Base
 from app.database import get_db
@@ -34,6 +37,12 @@ async def client():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         yield c
+
+@pytest.fixture
+async def db_session():
+    """直接访问测试数据库的会话"""
+    async with TestSession() as session:
+        yield session
 
 @pytest.fixture
 async def auth_client(client):
