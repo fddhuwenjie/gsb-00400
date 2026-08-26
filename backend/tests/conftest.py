@@ -1,15 +1,20 @@
 import pytest
 import os
+import tempfile
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
-# 使用内存数据库
+_tmp = tempfile.mkdtemp()
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 os.environ["SECRET_KEY"] = "test-secret-key-for-testing"
+os.environ["LOG_DIR"] = os.path.join(_tmp, "logs")
+os.environ["UPLOAD_DIR"] = os.path.join(_tmp, "uploads")
+os.environ["VECTOR_DB_PATH"] = os.path.join(_tmp, "vector_store")
 
-from app.models import Base
+from app.models import Base, User
 from app.database import get_db
+from app.routers.auth import pwd_context
 from app.main import app
 
 test_engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
@@ -37,9 +42,23 @@ async def client():
 
 @pytest.fixture
 async def auth_client(client):
-    """创建已认证的客户端"""
+    """已登录管理员客户端"""
     await client.post("/api/auth/init")
     resp = await client.post("/api/auth/login", data={"username": "admin", "password": "admin123"})
     token = resp.json()["access_token"]
     client.headers["Authorization"] = f"Bearer {token}"
     return client
+
+@pytest.fixture
+async def user_client(client):
+    """已登录普通用户客户端（无审核权限），使用独立HTTP客户端"""
+    async with TestSession() as session:
+        user = User(username="regular", hashed_password=pwd_context.hash("user123"), role="user")
+        session.add(user)
+        await session.commit()
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as c:
+        resp = await c.post("/api/auth/login", data={"username": "regular", "password": "user123"})
+        token = resp.json()["access_token"]
+        c.headers["Authorization"] = f"Bearer {token}"
+        yield c

@@ -26,12 +26,23 @@ def create_token(data: dict):
 async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)):
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        user = await db.get(User, payload.get("sub"))
+        user_id = payload.get("sub")
+        if user_id is not None:
+            user_id = int(user_id)
+        user = await db.get(User, user_id)
         if user is None:
             raise HTTPException(status_code=401, detail="Invalid token")
         return user
+    except HTTPException:
+        raise
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid token")
+
+
+async def require_admin(user: User = Depends(get_current_user)):
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="需要管理员权限")
+    return user
 
 
 @router.post("/login", response_model=Token, summary="用户登录", description="使用用户名和密码登录，返回JWT访问令牌")
@@ -40,7 +51,7 @@ async def login(form: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = 
     user = result.scalar_one_or_none()
     if not user or not pwd_context.verify(form.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="用户名或密码错误")
-    return {"access_token": create_token({"sub": user.id}), "token_type": "bearer"}
+    return {"access_token": create_token({"sub": str(user.id)}), "token_type": "bearer"}
 
 @router.post("/init", summary="初始化管理员", description="创建默认管理员账号（admin/admin123），仅首次调用有效")
 async def init_admin(db: AsyncSession = Depends(get_db)):

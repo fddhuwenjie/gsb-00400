@@ -13,9 +13,22 @@ class User(Base):
     role = Column(String(20), default="user")  # admin, user
     created_at = Column(DateTime, default=datetime.utcnow)
 
+class Document(Base):
+    __tablename__ = "documents"
+    id = Column(Integer, primary_key=True, index=True)
+    document_key = Column(String(255), unique=True, index=True)
+    title = Column(String(500))
+    current_version_id = Column(Integer, ForeignKey("file_records.id", use_alter=True, name="fk_document_current_version"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    versions = relationship("FileRecord", back_populates="document", foreign_keys="FileRecord.document_id")
+    current_version = relationship("FileRecord", foreign_keys=[current_version_id], post_update=True)
+
 class FileRecord(Base):
     __tablename__ = "file_records"
     id = Column(Integer, primary_key=True, index=True)
+    document_id = Column(Integer, ForeignKey("documents.id"), nullable=True, index=True)
+    version_number = Column(Integer, default=1)
     original_path = Column(String(500))
     original_name = Column(String(255))
     standard_name = Column(String(500))
@@ -25,11 +38,15 @@ class FileRecord(Base):
     upload_date = Column(DateTime, default=datetime.utcnow)
     process_status = Column(String(20), default="pending")  # pending, processing, completed, failed
     review_status = Column(String(20), default="pending")  # pending, approved, rejected
+    review_comment = Column(Text, nullable=True)
     reviewed_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     reviewed_at = Column(DateTime, nullable=True)
+    change_description = Column(Text, nullable=True)
+    uploaded_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     summary = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    document = relationship("Document", back_populates="versions", foreign_keys=[document_id])
     tags = relationship("FileTag", back_populates="file")
     chunks = relationship("TextChunk", back_populates="file")
 

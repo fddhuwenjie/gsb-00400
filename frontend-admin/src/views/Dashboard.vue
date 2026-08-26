@@ -6,10 +6,10 @@
     </div>
 
     <div class="stats">
-      <div class="stat-card blue"><div class="stat-value">{{ data.total_files }}</div><div class="stat-label">总文件数</div></div>
-      <div class="stat-card green"><div class="stat-value">{{ data.completed }}</div><div class="stat-label">已处理</div></div>
+      <div class="stat-card blue"><div class="stat-value">{{ data.total_documents || 0 }}</div><div class="stat-label">业务文档</div></div>
+      <div class="stat-card green"><div class="stat-value">{{ data.approved }}</div><div class="stat-label">已发布版本</div></div>
       <div class="stat-card orange"><div class="stat-value">{{ data.pending_review }}</div><div class="stat-label">待审核</div></div>
-      <div class="stat-card purple"><div class="stat-value">{{ data.approved }}</div><div class="stat-label">已入库</div></div>
+      <div class="stat-card purple"><div class="stat-value">{{ data.total_files }}</div><div class="stat-label">版本总数</div></div>
     </div>
 
     <div class="actions-bar">
