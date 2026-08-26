@@ -2,7 +2,7 @@
   <div>
     <div class="page-header">
       <h1>知识检索</h1>
-      <p class="subtitle">基于语义的智能文档搜索</p>
+      <p class="subtitle">基于语义的智能文档搜索（仅检索当前已发布版本）</p>
     </div>
 
     <div class="search-section">
@@ -21,8 +21,12 @@
       <p class="result-count">找到 {{ results.length }} 个相关文档</p>
       <div v-for="r in results" :key="r.file_id" class="result-card">
         <div class="result-info">
-          <div class="result-name">{{ r.filename }}</div>
-          <div class="result-meta">{{ r.standard_name }}</div>
+          <div class="result-name">
+            {{ r.filename }}
+            <span class="version-badge current">v{{ r.version_number }}</span>
+            <span v-if="r.document_id" class="doc-link" @click="$router.push(`/documents/${r.document_id}`)">版本历史</span>
+          </div>
+          <div class="result-meta">{{ r.standard_name || '未命名' }} · {{ r.bucket }}</div>
         </div>
         <div class="result-score">
           <div class="score">{{ (r.score * 100).toFixed(0) }}%</div>
@@ -46,7 +50,10 @@ const searching = ref(false)
 const doSearch = async () => {
   if (!query.value) return
   searched.value = true; searching.value = true
-  try { const { data } = await search.query(query.value); results.value = data.results || [] }
+  try {
+    const { data } = await search.query(query.value, 10)
+    results.value = data.results || []
+  }
   catch { toast.error('搜索失败，请稍后重试'); results.value = [] }
   finally { searching.value = false }
 }
@@ -64,11 +71,15 @@ h1 { font-size: 24px; color: #1e293b; }
 .search-box button:disabled { background: #94a3b8; }
 .results { display: flex; flex-direction: column; gap: 12px; }
 .result-card { display: flex; justify-content: space-between; align-items: center; background: white; padding: 20px 24px; border-radius: 12px; border: 1px solid #e2e8f0; }
-.result-name { font-size: 16px; font-weight: 500; color: #1e293b; }
+.result-name { font-size: 16px; font-weight: 500; color: #1e293b; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .result-meta { font-size: 14px; color: #64748b; margin-top: 4px; }
 .result-score { text-align: right; }
 .score { font-size: 24px; font-weight: 700; color: #10b981; }
 .label { font-size: 12px; color: #64748b; }
+.version-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.version-badge.current { background: #dbeafe; color: #1e40af; }
+.doc-link { font-size: 12px; color: #6366f1; cursor: pointer; font-weight: 400; }
+.doc-link:hover { text-decoration: underline; }
 .empty-card { background: white; padding: 60px; border-radius: 12px; text-align: center; color: #64748b; }
 .loading-card { background: white; padding: 60px; border-radius: 12px; text-align: center; color: #64748b; border: 1px solid #e2e8f0; }
 .loading-card p { margin-top: 16px; font-size: 15px; }

@@ -35,13 +35,23 @@ export const files = {
   upload: (formData, onProgress) => api.post('/files/upload', formData, {
     onUploadProgress: onProgress ? (e) => onProgress(Math.round((e.loaded * 100) / e.total)) : undefined
   }),
-  review: (id, action) => api.post(`/files/${id}/review`, null, { params: { action } }),
+  review: (id, action, comment) => api.post(`/files/${id}/review`, null, { params: { action, comment } }),
   reindex: () => api.post('/files/reindex'),
   processPending: () => api.post('/files/process-pending')
 }
 
+export const documents = {
+  list: (params) => api.get('/documents', { params }),
+  get: (id) => api.get(`/documents/${id}`),
+  getVersion: (docId, versionId) => api.get(`/documents/${docId}/versions/${versionId}`),
+  reviewVersion: (docId, versionId, action, comment) =>
+    api.post(`/documents/${docId}/versions/${versionId}/review`, null, { params: { action, comment } }),
+  switchVersion: (docId, versionId) => api.post(`/documents/${docId}/switch-version/${versionId}`)
+}
+
 export const search = {
-  query: (q, topK = 10) => api.get('/search', { params: { q, top_k: topK } })
+  query: (q, topK = 10) =>
+    api.get('/search', { params: { q, top_k: topK } })
 }
 
 export const stats = {

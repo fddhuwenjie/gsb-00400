@@ -24,7 +24,7 @@ class EmbeddingService:
         self.dimension = 384
         self.index = None
         self.id_map = {}
-        self.index_path = Path("/data/vector_store")
+        self.index_path = Path(os.environ.get("VECTOR_DB_PATH", "/data/vector_store"))
         self._load_attempts = 0
         self._max_attempts = 3
     

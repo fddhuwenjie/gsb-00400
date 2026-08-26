@@ -2,7 +2,7 @@
   <div>
     <div class="page-header">
       <h1>审核确认</h1>
-      <p class="subtitle">确认AI生成的分类和标签</p>
+      <p class="subtitle">确认AI生成的分类和标签，审核通过后版本进入检索</p>
     </div>
 
     <div v-if="loading" class="loading-card">
@@ -11,10 +11,14 @@
     </div>
 
     <div v-else-if="list.length" class="review-list">
-      <p class="review-count">共 {{ list.length }} 个文件待审核</p>
+      <p class="review-count">共 {{ list.length }} 个版本待审核</p>
       <div v-for="f in list" :key="f.id" class="review-card">
         <div class="file-info">
-          <div class="file-name">{{ f.name }}</div>
+          <div class="file-name">
+            {{ f.name }}
+            <span class="version-badge">v{{ f.version_number }}</span>
+            <span v-if="f.change_description" class="change-desc">变更：{{ f.change_description }}</span>
+          </div>
           <div class="file-meta">
             <span class="tag">{{ f.bucket }}</span>
             <span :class="['status-tag', f.status]">{{ statusMap[f.status] || f.status }}</span>
@@ -25,12 +29,15 @@
           <div class="value">{{ f.standard_name || '未生成' }}</div>
         </div>
         <div class="actions">
-          <button class="btn-approve" @click="review(f.id, 'approve')">✓ 通过</button>
-          <button class="btn-reject" @click="review(f.id, 'reject')">✗ 拒绝</button>
+          <button class="btn-approve" @click="review(f, 'approve')">✓ 通过</button>
+          <button class="btn-reject" @click="review(f, 'reject')">✗ 退回</button>
+          <router-link v-if="f.document_id" :to="`/documents/${f.document_id}`" class="btn-detail">
+            版本历史
+          </router-link>
         </div>
       </div>
     </div>
-    <div v-else class="empty-card"><p>🎉 所有文件已审核完成</p></div>
+    <div v-else class="empty-card"><p>🎉 所有版本已审核完成</p></div>
   </div>
 </template>
 
@@ -45,16 +52,15 @@ const statusMap = { pending: '待处理', processing: '处理中', completed: '�
 const load = async () => {
   loading.value = true
   try {
-    // 获取所有文件，筛选出待审核的（不限处理状态）
-    const { data } = await files.list({})
-    list.value = (data.files || []).filter(f => f.review_status === 'pending')
+    const { data } = await files.list({ review_status: 'pending' })
+    list.value = (data.files || []).filter(f => f.status === 'completed')
   } catch { toast.error('加载审核列表失败'); list.value = [] }
   finally { loading.value = false }
 }
-const review = async (id, action) => {
+const review = async (f, action) => {
   try {
-    await files.review(id, action)
-    toast.success(action === 'approve' ? '已通过审核' : '已拒绝')
+    await files.review(f.id, action)
+    toast.success(action === 'approve' ? `v${f.version_number} 已通过，已设为当前版本` : `v${f.version_number} 已退回`)
     load()
   } catch { toast.error('审核操作失败') }
 }
@@ -69,7 +75,9 @@ h1 { font-size: 24px; color: #1e293b; }
 .review-count { font-size: 13px; color: #64748b; margin-bottom: 4px; }
 .review-card { background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0; }
 .file-info { margin-bottom: 16px; }
-.file-name { font-size: 16px; font-weight: 600; color: #1e293b; margin-bottom: 8px; }
+.file-name { font-size: 16px; font-weight: 600; color: #1e293b; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.version-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; background: #fef3c7; color: #92400e; }
+.change-desc { font-size: 12px; color: #64748b; font-weight: 400; background: #f8fafc; padding: 2px 8px; border-radius: 6px; }
 .file-meta { display: flex; gap: 8px; align-items: center; }
 .tag { background: #e0e7ff; color: #4338ca; padding: 4px 10px; border-radius: 12px; font-size: 12px; }
 .status-tag { padding: 4px 10px; border-radius: 12px; font-size: 12px; }
@@ -80,9 +88,11 @@ h1 { font-size: 24px; color: #1e293b; }
 .suggestion { margin-bottom: 16px; }
 .suggestion label { font-size: 12px; color: #64748b; text-transform: uppercase; }
 .suggestion .value { margin-top: 8px; padding: 12px; background: #f8fafc; border-radius: 8px; font-family: monospace; }
-.actions { display: flex; gap: 12px; }
+.actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
 .btn-approve { padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer; }
 .btn-reject { padding: 10px 20px; background: #f1f5f9; color: #64748b; border: none; border-radius: 8px; cursor: pointer; }
+.btn-detail { padding: 10px 20px; background: white; border: 1px solid #e2e8f0; color: #6366f1; border-radius: 8px; cursor: pointer; text-decoration: none; font-size: 13px; }
+.btn-detail:hover { background: #f8fafc; }
 .empty-card { background: white; padding: 60px; border-radius: 12px; text-align: center; color: #64748b; }
 .loading-card { background: white; padding: 60px; border-radius: 12px; text-align: center; color: #64748b; border: 1px solid #e2e8f0; }
 .loading-card p { margin-top: 16px; font-size: 15px; }
